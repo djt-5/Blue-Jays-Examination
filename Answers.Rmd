@@ -1,0 +1,86 @@
+---
+title: "Blue Jays"
+author: "Danny Thompson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Information
+
+A right-handed pitcher is curious about how velocity, movement, and spin rates on fastballs affect the chances of batters putting the ball in play. Attached are two CSV files. Both files contain 10,000 random pitches of fastballs thrown in the strike zone by right-handed pitchers to right-handed batters (swings and takes are both included). One of them (training.csv) also includes whether the batter was able to put the ball in play.
+
+The columns are:
+
+-   InPlay -- A binary column indicating if the batter put the ball in play (1 = in play, 0 = not in play)
+
+-   Velo -- The velocity of the pitch at release (in mph)
+
+-   SpinRate -- The Spin Rate of the pitch at release (in rpm)
+
+-   HorzBreak -- The amount of movement the pitch had in the horizontal direction (in inches)
+
+-   InducedVertBreak -- The amount of movement (in inches) the pitch had in the vertical direction after accounting for the effects of gravity. A positive value means the pitch would move up in a gravity-free environment that still had the same air resistance.
+
+## Question 1
+
+Predict the chance of a pitch being put in play. Please use this model to predict the chance of each pitch in the "deploy.csv" file being put in play and return a CSV with your predictions.
+
+**Answer**
+
+```{r}
+library(tidyverse)
+training <- read_csv("training.csv")
+deploy <- read_csv("deploy.csv")
+
+training$SpinRate <- as.double(training$SpinRate)
+deploy$SpinRate <- as.double(deploy$SpinRate)
+
+model <- lm(InPlay ~ 0 + Velo + HorzBreak + InducedVertBreak + SpinRate, data = training)
+summary(model)
+
+#p-value < 2.2e-16
+#Multiple R-Squared: 0.277
+
+deploy_with_chances <- deploy
+
+deploy_with_chances$Chance <- (4.562e-03 * deploy_with_chances$Velo) + (3.123e-03 * deploy_with_chances$HorzBreak) -
+  (6.025e-03 * deploy_with_chances$InducedVertBreak) - (4.560e-05 * deploy_with_chances$SpinRate)
+
+print(deploy_with_chances)
+write_csv(deploy_with_chances, "deploy-with-chances.csv")
+```
+
+## Question 2
+
+In one paragraph, please explain your process and reasoning for any decisions you made in Question 1
+
+**Answer**
+
+My first instinct was to create a generalized linear model including all the predictors. When testing this model there was little evidence it was a good fit, so I switched back to a regular linear model. With the intercept, the model had a weak F-Statistic and R-Squared. I removed the intercept and greatly improved the F-Statistic and R-Squared, keeping the Spin Rate for marginal improvement in model fit. 
+
+Of course, with the unpredictable human nature of baseball, there will be large variation in the chance a batter swings that would take more than just the basic pitch variables to predict, like the previous pitch thrown, the count, how many times the batter has seen the pitcher, release angles, pitch tunneling, release point, and about 10 million different others, so of course the estimates are not too reliable, but they are significant with the given data.
+
+## Question 3
+
+In one or two sentences, please describe to the pitcher how these 4 variables affect the batter’s ability to put the ball in play. You can also include one plot or table to show to the pitcher if you think it would help.
+
+**Answer**
+
+The faster the velocity, the greater the vertical break (to the catcher's right), the less amount of vertical break, and ironically smaller spin rate, the less the batter has a chance to put the ball in play. Velocity is obvious, while breaking off the plate away from the batter's outside or fooling the batter's inside helps, as well as avoiding too much vertical break as a high heater is typically a swing-and-miss pitch.
+
+The Plot can be found as a ShinyApp in this directory but also uploaded here: https://danielthom18.shinyapps.io/pitcher-plot-jays-shinyapp/
+
+## Question 4
+
+In one or two sentences, please describe what you would see as the next steps with your model and/or results if you were in the analyst role and had another week to work on the question posed by the pitcher.
+
+**Answer**
+
+I would look at all the statcast, trackman, rapsodo, whatever other data there is to measure the control of pitches with best probability of not being put in play, measure those pitches up with previous pitches thrown and the count they were thrown in, and factor by them while analyzing the pitch tunneling data (is the release point, release angle, and ball location after 10 feet almost identical on every type of pitch) and then work with the pitching coach to make that tweak in mechanics without overdoing it.
+
+
+
